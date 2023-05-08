@@ -1,2 +1,2 @@
-pub mod tac;
 pub mod asm;
+pub mod tac;

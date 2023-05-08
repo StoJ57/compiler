@@ -2,26 +2,39 @@ use super::super::compiler::tac;
 
 pub trait Type {
     fn pretty_print_at(&self, indent: i64, del: &str);
-    fn pretty_print(&self){
+    fn pretty_print(&self) {
         self.pretty_print_at(0, "   ");
     }
 }
 
 pub trait Expression: Type {
-    fn compile_tac(&self, scope: &mut tac::Scope, target: u64, strict_target: bool) -> (Vec<tac::Line>, tac::Address);
+    fn compile_tac(
+        &self,
+        scope: &mut tac::Scope,
+        target: u64,
+        strict_target: bool,
+    ) -> (Vec<tac::Line>, tac::Address);
 }
 pub trait Factor: Expression {}
 
 pub struct Const {
-    pub value: u64
+    pub value: u64,
 }
 impl Factor for Const {}
 impl Expression for Const {
-    fn compile_tac(&self, scope: &mut tac::Scope, target: u64, strict_target: bool) -> (Vec<tac::Line>, tac::Address) {
+    fn compile_tac(
+        &self,
+        _scope: &mut tac::Scope,
+        target: u64,
+        strict_target: bool,
+    ) -> (Vec<tac::Line>, tac::Address) {
         if strict_target {
             return (
-                vec![tac::Line::Move(tac::Address::Constant(self.value), tac::Address::Variable(target))],
-                tac::Address::Variable(target)
+                vec![tac::Line::Move(
+                    tac::Address::Constant(self.value),
+                    tac::Address::Variable(target),
+                )],
+                tac::Address::Variable(target),
             );
         }
         (vec![], tac::Address::Constant(self.value))
@@ -30,23 +43,26 @@ impl Expression for Const {
 impl Type for Const {
     fn pretty_print_at(&self, indent: i64, del: &str) {
         let prefix = String::from(del.repeat(indent as usize));
-        println!("{}", prefix+"Const "+&self.value.to_string());
+        println!("{}", prefix + "Const " + &self.value.to_string());
     }
 }
 
 #[derive(Clone, Copy)]
 pub enum UnOpType {
-    Negate, // -
+    Negate,     // -
     Complement, // ~
-    Not, // !
+    Not,        // !
 }
 impl UnOpType {
-    pub fn from_str(oper: &str) -> Result<Self, super::ParseError>{
+    pub fn from_str(oper: &str) -> Result<Self, super::ParseError> {
         match oper {
             "-" => Ok(Self::Negate),
             "~" => Ok(Self::Complement),
             "!" => Ok(Self::Not),
-            _ => Err(super::ParseError::new(&format!("Unknown operation: {}", oper)))
+            _ => Err(super::ParseError::new(&format!(
+                "Unknown operation: {}",
+                oper
+            ))),
         }
     }
 }
@@ -55,45 +71,50 @@ impl Into<&'static str> for UnOpType {
         match self {
             UnOpType::Negate => "-",
             UnOpType::Complement => "~",
-            UnOpType::Not => "!"
+            UnOpType::Not => "!",
         }
     }
 }
 
 pub struct UnOp {
     pub value: Box<dyn Expression>,
-    pub oper: UnOpType
+    pub oper: UnOpType,
 }
 impl Factor for UnOp {}
 impl Expression for UnOp {
-    fn compile_tac(&self, scope: &mut tac::Scope, target: u64, strict_target: bool) -> (Vec<tac::Line>, tac::Address) {
+    fn compile_tac(
+        &self,
+        scope: &mut tac::Scope,
+        target: u64,
+        strict_target: bool,
+    ) -> (Vec<tac::Line>, tac::Address) {
         todo!()
     }
 }
 impl Type for UnOp {
     fn pretty_print_at(&self, indent: i64, del: &str) {
         let prefix = String::from(del.repeat(indent as usize));
-        println!("{}", prefix.clone()+"UnOp "+self.oper.into());
-        println!("{}Value:", prefix.clone()+del);
-        self.value.pretty_print_at(indent+2, del);
+        println!("{}", prefix.clone() + "UnOp " + self.oper.into());
+        println!("{}Value:", prefix.clone() + del);
+        self.value.pretty_print_at(indent + 2, del);
     }
 }
 
 #[derive(Clone, Copy)]
 pub enum BinOpType {
-    BitwiseOr, // ||
-    BitWiseAnd, // &&
-    NotEqual, // !=
-    Equal, // ==
-    LessThan, // <
-    GreaterThan, // >
-    LessThanOrEq, // <=
+    BitwiseOr,       // ||
+    BitWiseAnd,      // &&
+    NotEqual,        // !=
+    Equal,           // ==
+    LessThan,        // <
+    GreaterThan,     // >
+    LessThanOrEq,    // <=
     GreaterThanOrEq, // >=
-    Add, // +
-    Subtract, // -
+    Add,             // +
+    Subtract,        // -
 }
 impl BinOpType {
-    pub fn from_str(oper: &str) -> Result<Self, super::ParseError>{
+    pub fn from_str(oper: &str) -> Result<Self, super::ParseError> {
         match oper {
             "||" => Ok(Self::BitwiseOr),
             "&&" => Ok(Self::BitWiseAnd),
@@ -105,7 +126,10 @@ impl BinOpType {
             ">=" => Ok(Self::GreaterThanOrEq),
             "+" => Ok(Self::Add),
             "-" => Ok(Self::Subtract),
-            _ => Err(super::ParseError::new(&format!("Unknown operation: {}", oper)))
+            _ => Err(super::ParseError::new(&format!(
+                "Unknown operation: {}",
+                oper
+            ))),
         }
     }
 }
@@ -129,65 +153,102 @@ impl Into<&'static str> for BinOpType {
 pub struct BinOp {
     pub value_a: Box<dyn Expression>,
     pub value_b: Box<dyn Expression>,
-    pub oper: BinOpType
+    pub oper: BinOpType,
 }
 impl Expression for BinOp {
-    fn compile_tac(&self, scope: &mut tac::Scope, target: u64, strict_target: bool) -> (Vec<tac::Line>, tac::Address) {
-        todo!()
+    fn compile_tac(
+        &self,
+        scope: &mut tac::Scope,
+        target: u64,
+        strict_target: bool,
+    ) -> (Vec<tac::Line>, tac::Address) {
+        match self.oper {
+            BinOpType::Add => {
+                let var = scope.var_label();
+                let (mut out, addr1) = self.value_a.compile_tac(scope, var, false);
+                let (mut exp2, addr2) = self.value_b.compile_tac(scope, target, false);
+                if let tac::Address::Constant(x) = addr1 && let tac::Address::Constant(y) = addr2 {
+                    // Both constants - calculate at compile time
+                    if strict_target {
+                       (vec![tac::Line::Move(tac::Address::Constant(x+y), tac::Address::Variable(target))], tac::Address::Variable(target))
+                    } else {
+                        (vec![], tac::Address::Constant(x+y))
+                    }
+                } else {
+                    out.append(&mut exp2);
+                    out.push(tac::Line::Add(addr2, addr1));
+                    if strict_target && addr2 != tac::Address::Variable(target) {
+                        out.push(tac::Line::Move(addr2, tac::Address::Variable(target)));
+                        (out, tac::Address::Variable(target))
+                    } else {
+                        (out, addr2)
+                    }
+                }
+            }
+            _ => todo!(),
+        }
     }
 }
 impl Type for BinOp {
     fn pretty_print_at(&self, indent: i64, del: &str) {
         let prefix = String::from(del.repeat(indent as usize));
-        println!("{}BinOp '{}'", prefix.clone(), Into::<&str>::into(self.oper));
-        println!("{}ValueA:", prefix.clone()+del);
-        self.value_a.pretty_print_at(indent+2, del);
-        println!("{}ValueB:", prefix.clone()+del);
-        self.value_b.pretty_print_at(indent+2, del);
+        println!(
+            "{}BinOp '{}'",
+            prefix.clone(),
+            Into::<&str>::into(self.oper)
+        );
+        println!("{}ValueA:", prefix.clone() + del);
+        self.value_a.pretty_print_at(indent + 2, del);
+        println!("{}ValueB:", prefix.clone() + del);
+        self.value_b.pretty_print_at(indent + 2, del);
     }
 }
 
 pub struct Assign {
     pub var_name: String,
-    pub expression: Box<dyn Expression>
+    pub expression: Box<dyn Expression>,
 }
 impl Expression for Assign {
-    fn compile_tac(&self, scope: &mut tac::Scope, target: u64, strict_target: bool) -> (Vec<tac::Line>, tac::Address) {
+    fn compile_tac(
+        &self,
+        scope: &mut tac::Scope,
+        target: u64,
+        strict_target: bool,
+    ) -> (Vec<tac::Line>, tac::Address) {
         todo!()
     }
 }
 impl Type for Assign {
     fn pretty_print_at(&self, indent: i64, del: &str) {
         let prefix = String::from(del.repeat(indent as usize));
-        println!("{}", prefix.clone()+"Assign");
-        println!("{}", prefix.clone()+del+"Var: "+&self.var_name);
-        self.expression.pretty_print_at(indent+1, del);
+        println!("{}", prefix.clone() + "Assign");
+        println!("{}", prefix.clone() + del + "Var: " + &self.var_name);
+        self.expression.pretty_print_at(indent + 1, del);
     }
 }
 
 pub enum Statement {
     DECLARE,
     RETURN(Box<dyn Expression>),
-    EXPRESSION
+    EXPRESSION,
 }
 impl Type for Statement {
     fn pretty_print_at(&self, indent: i64, del: &str) {
         let prefix = String::from(del.repeat(indent as usize));
         match self {
-            Self::RETURN(exp)=> {
+            Self::RETURN(exp) => {
                 println!("{}", prefix + "RETURN Statement with value:");
-                exp.pretty_print_at(indent+1, del);
+                exp.pretty_print_at(indent + 1, del);
             }
             _ => {
-                println!("{}", prefix+"Other Statement")
+                println!("{}", prefix + "Other Statement")
             }
         }
-        
     }
 }
 pub struct Function {
     pub name: String,
-    pub body: Vec<Statement>
+    pub body: Vec<Statement>,
 }
 impl Type for Function {
     fn pretty_print_at(&self, indent: i64, del: &str) {
@@ -196,13 +257,13 @@ impl Type for Function {
         println!("{}", prefix.clone() + del + "Name: " + &self.name);
         println!("{}", prefix.clone() + del + "Body: ");
         for statement in &self.body {
-            statement.pretty_print_at(indent+2, del);
+            statement.pretty_print_at(indent + 2, del);
         }
     }
 }
 
 pub struct Program {
-    pub functions: Vec<Function>
+    pub functions: Vec<Function>,
 }
 impl Type for Program {
     fn pretty_print_at(&self, indent: i64, del: &str) {
@@ -210,10 +271,7 @@ impl Type for Program {
         println!("{}", prefix.clone() + "Program");
         println!("{}", prefix.clone() + del + "Functions: ");
         for func in &self.functions {
-            func.pretty_print_at(indent+2, del);
+            func.pretty_print_at(indent + 2, del);
         }
     }
 }
-
-
-

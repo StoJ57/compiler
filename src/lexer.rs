@@ -6,13 +6,13 @@ pub enum TokenType {
     SEMICOLON,
     IDENT,
     INT,
-    OPER
+    OPER,
 }
 
 #[derive(Debug, Clone)]
 pub struct Token {
     token_type: TokenType,
-    text: String
+    text: String,
 }
 impl Token {
     pub fn text(&self) -> &str {
@@ -25,12 +25,12 @@ impl Token {
 
 #[derive(Debug)]
 pub struct LexError {
-    text: String
+    text: String,
 }
 impl LexError {
     fn new<T: ToString>(msg: T) -> Self {
         Self {
-            text: msg.to_string()
+            text: msg.to_string(),
         }
     }
 }
@@ -51,33 +51,32 @@ macro_rules! error {
     }
 }
 
-
-const WHITESPACE: [char; 3] = ['\n','\t',' '];
+const WHITESPACE: [char; 3] = ['\n', '\t', ' '];
 
 const TOKENS: [(&str, TokenType); 8] = [
-    ("\\{",TokenType::PARENTH),
-    ("\\}",TokenType::PARENTH),
-    ("\\(",TokenType::PARENTH),
-    ("\\)",TokenType::PARENTH),
-    (";",TokenType::SEMICOLON),
-    (r"[a-zA-Z]\w*",TokenType::IDENT),
-    ("[0-9]+",TokenType::INT),
-    (r"[-~!+*/]|(&&)|(\|\|)|(==)|(!=)|(<)|(<=)|(>)|(>=)|(=)",TokenType::OPER),
+    ("\\{", TokenType::PARENTH),
+    ("\\}", TokenType::PARENTH),
+    ("\\(", TokenType::PARENTH),
+    ("\\)", TokenType::PARENTH),
+    (";", TokenType::SEMICOLON),
+    (r"[a-zA-Z]\w*", TokenType::IDENT),
+    ("[0-9]+", TokenType::INT),
+    (
+        r"[-~!+*/]|(&&)|(\|\|)|(==)|(!=)|(<)|(<=)|(>)|(>=)|(=)",
+        TokenType::OPER,
+    ),
 ];
 
-pub fn get_tokens() -> Vec<(regex::Regex, TokenType)>{
+pub fn get_tokens() -> Vec<(regex::Regex, TokenType)> {
     let mut tokens = vec![];
-    for token in &TOKENS{
-        tokens.push((
-            Regex::new(token.0).unwrap(),
-            token.1
-        ));
+    for token in &TOKENS {
+        tokens.push((Regex::new(token.0).unwrap(), token.1));
     }
     tokens
 }
 
-pub fn lex(text_in: &str) -> Result<Vec<Token>, LexError>{
-    let mut text : String = text_in.to_string().clone();
+pub fn lex(text_in: &str) -> Result<Vec<Token>, LexError> {
+    let mut text: String = text_in.to_string().clone();
     let mut out = vec![];
     while text.len() > 0 {
         if WHITESPACE.contains(&text.chars().nth(0).unwrap()) {
@@ -90,16 +89,16 @@ pub fn lex(text_in: &str) -> Result<Vec<Token>, LexError>{
             match opt_match {
                 Some(reg_match) => {
                     if reg_match.start() == 0 {
-                        out.push( Token {
+                        out.push(Token {
                             text: reg_match.as_str().to_string(),
-                            token_type: token_type
+                            token_type: token_type,
                         });
                         text = text[reg_match.end()..text.len()].to_string();
                         found = true;
-                        break
+                        break;
                     }
                 }
-                None => ()
+                None => (),
             }
         }
         if !found {
